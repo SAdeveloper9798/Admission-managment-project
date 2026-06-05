@@ -1,0 +1,207 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  ADMISSION_OFFICER
+  MANAGEMENT
+}
+
+enum DocumentStatus {
+  PENDING
+  SUBMITTED
+  VERIFIED
+}
+
+enum FeeStatusEnum {
+  PENDING
+  PAID
+}
+
+enum AdmissionStatus {
+  ALLOCATED
+  CONFIRMED
+  CANCELLED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CourseType {
+  UG
+  PG
+}
+
+enum EntryType {
+  REGULAR
+  LATERAL
+}
+
+enum AdmissionMode {
+  GOVERNMENT
+  MANAGEMENT
+}
+
+enum QuotaType {
+  KCET
+  COMEDK
+  MANAGEMENT
+  SNQ
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(ADMISSION_OFFICER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+}
+
+model Institution {
+  id        String     @id @default(cuid())
+  name      String     @unique
+  code      String     @unique
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  campuses  Campus[]
+}
+
+model Campus {
+  id            String      @id @default(cuid())
+  name          String
+  code          String
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  departments   Department[]
+
+  @@unique([code, institutionId])
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String
+  code      String
+  campusId  String
+  campus    Campus    @relation(fields: [campusId], references: [id])
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  programs  Program[]
+
+  @@unique([code, campusId])
+}
+
+model Program {
+  id           String      @id @default(cuid())
+  name         String
+  code         String
+  courseType   CourseType
+  entryType    EntryType   @default(REGULAR)
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id])
+  totalIntake  Int         @default(0)
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  seatMatrix   SeatMatrix[]
+  applicants   Applicant[]
+  admissions   Admission[]
+
+  @@unique([code, departmentId])
+}
+
+model AcademicYear {
+  id         String      @id @default(cuid())
+  year       String      @unique
+  isActive   Boolean     @default(true)
+  isCurrent  Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  admissions Admission[]
+}
+
+model SeatMatrix {
+  id                  String     @id @default(cuid())
+  programId           String
+  program             Program    @relation(fields: [programId], references: [id])
+  quotaType           QuotaType
+  totalSeats          Int        @default(0)
+  allocatedSeats      Int        @default(0)
+  supernumerarySeats  Int        @default(0)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  @@unique([programId, quotaType])
+  @@index([programId])
+}
+
+model Applicant {
+  id              String         @id @default(cuid())
+  name            String
+  email           String
+  phone           String
+  gender          Gender
+  dob             DateTime
+  address         String
+  category        String
+  entryType       EntryType
+  quotaType       QuotaType
+  programId       String
+  program         Program        @relation(fields: [programId], references: [id])
+  qualifyingExam  String
+  marks           Float
+  yearOfPassing   Int
+  parentName      String
+  parentPhone     String
+  documentStatus  DocumentStatus @default(PENDING)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  admission       Admission?
+
+  @@index([email])
+  @@index([programId])
+  @@index([quotaType])
+}
+
+model Admission {
+  id              String          @id @default(cuid())
+  admissionNumber String?         @unique
+  applicantId     String          @unique
+  applicant       Applicant       @relation(fields: [applicantId], references: [id])
+  programId       String
+  program         Program         @relation(fields: [programId], references: [id])
+  academicYearId  String
+  academicYear    AcademicYear    @relation(fields: [academicYearId], references: [id])
+  quotaType       QuotaType
+  admissionMode   AdmissionMode
+  allotmentNumber String?
+  status          AdmissionStatus @default(ALLOCATED)
+  feeStatus       FeeStatusEnum   @default(PENDING)
+  confirmedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([admissionNumber])
+  @@index([programId])
+  @@index([academicYearId])
+}
